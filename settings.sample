@@ -1,0 +1,5 @@
+original_photo_path: /home/foobar/sync/diary-photos
+target_photo_path: /home/foobar/sync/obsidian/notes/diary-attachments
+obsidian_file_path: /home/foobar/sync/obsidian/notes
+check_interval: 10s
+image_prefix: diary-image-
