@@ -1,28 +1,26 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"os"
 	"path"
 	"regexp"
-	"time"
 
 	"gopkg.in/yaml.v3"
 )
 
 type appSettings struct {
-	OriginalPhotoPath string        `yaml:"original_photo_path"`
-	TargetPhotoPath   string        `yaml:"target_photo_path"`
-	ObsidianFilePath  string        `yaml:"obsidian_file_path"`
-	CheckInterval     time.Duration `yaml:"check_interval"`
-	ImagePrefix       string        `yaml:"image_prefix"`
+	OriginalPhotoPath string `yaml:"original_photo_path"`
+	TargetPhotoPath   string `yaml:"target_photo_path"`
+	ObsidianFilePath  string `yaml:"obsidian_file_path"`
+	ImagePrefix       string `yaml:"image_prefix"`
 }
 
-func readSettings() (*appSettings, error) {
-	data, err := os.ReadFile("settings.yaml")
+func readSettings(filePath string) (*appSettings, error) {
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read settings.yaml: %v", err)
 	}
@@ -38,7 +36,7 @@ func readSettings() (*appSettings, error) {
 func checkPhotos(photoPath string) map[string][]string {
 	result := make(map[string][]string)
 
-	files, err := ioutil.ReadDir(photoPath)
+	files, err := os.ReadDir(photoPath)
 	if err != nil {
 		log.Fatalf("unable to read path %s, %s", photoPath, err)
 	}
@@ -138,19 +136,28 @@ func moveImages(photos []string, settings *appSettings) {
 }
 
 func main() {
-	settings, err := readSettings()
+	var settingsFile string
+
+	flag.StringVar(&settingsFile, "s", "", "Settings file")
+	flag.Parse()
+
+	if settingsFile == "" {
+		log.Fatal("Missing --settingsFile argument")
+	}
+
+	if !fileExists(settingsFile) {
+		log.Fatalf("Missing settings file %s", settingsFile)
+	}
+
+	settings, err := readSettings(settingsFile)
 	if err != nil {
 		log.Fatalf("unable to read setting: %s", err)
 	}
-	tick := time.Tick(settings.CheckInterval)
-	for range tick {
-		log.Printf("checking photos from %s\n", settings.OriginalPhotoPath)
-		photos := checkPhotos(settings.OriginalPhotoPath)
-		for date, photos := range photos {
-			log.Printf("updating diary for %s with %d photos\n", date, len(photos))
-			updateDiaryDocument(date, photos, settings)
-			moveImages(photos, settings)
-		}
-		time.Sleep(time.Second * time.Duration(settings.CheckInterval))
+	log.Printf("checking photos from %s\n", settings.OriginalPhotoPath)
+	photos := checkPhotos(settings.OriginalPhotoPath)
+	for date, photos := range photos {
+		log.Printf("updating diary for %s with %d photos\n", date, len(photos))
+		updateDiaryDocument(date, photos, settings)
+		moveImages(photos, settings)
 	}
 }
